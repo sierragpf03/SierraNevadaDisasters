@@ -1,17 +1,16 @@
 # SierraNevadaDisasters
-# Lake Sidney Lanier Environmental Analysis (Google Earth Engine)
+# Caldor Wildfire impact and recovery assessment (Google Earth Engine)
 
  
 
-University of North Georgia research under the direction of Dr. Amber ignatius (https://www.visualecogeo.com/#/lake-lanier). This repository contains a collection of Google Earth Engine (GEE) scripts for analyzing environmental properties of Lake Sidney Lanier in Georgia, USA. The goal is to provide reproducible workflows for monitoring water quality, land use changes, and other ecological indicators using satellite data.
+University of North Georgia research under the direction of Dr. Amber ignatius. This repository contains a collection of Google Earth Engine (GEE) scripts for analyzing environmental properties of the Caldor Wildfire in California, USA. The goal is to provide reproducible workflows for monitoring the enviroment, ecological impacts, ecological recovery, and other ecological indicators using satellite data.
 
  
 
 ## Overview
 
  
-
-Lake Sidney Lanier is a major reservoir in northern Georgia that serves as a critical source of drinking water, recreation, and habitat. Monitoring its environmental conditions is essential for sustainable management. This project leverages remote sensing datasets available in Google Earth Engine to analyze spatial and temporal trends.
+The Caldor Wildfire is a major natural disaster that occured in the Sierra Nevada Mountains. It created major ecological turoil and damaged the environment severily. Assessing both the impact and recovery of the disaster is crutial to fully understanding its extent and also to better prepare for future disasters. This project leverages remote sensing datasets available in Google Earth Engine to analyze spatial and temporal trends.
 
  
 
@@ -19,13 +18,13 @@ Lake Sidney Lanier is a major reservoir in northern Georgia that serves as a cri
 
  
 
-* Water quality indicators (turbidity, chlorophyll, temperature)
+* Vegetation Health indicators (NDVI, NDWI, NBR)
 
-* Land use / land cover change detection in the watershed
+* Surface temperature (ST_10)
 
-* Vegetation health 
+*CHIRPS rainfall data
 
-* Climate and precipitation data integration
+*MTBS(Monitoring trends in Burn Severity)
 
  
 
@@ -81,11 +80,11 @@ Lake Sidney Lanier is a major reservoir in northern Georgia that serves as a cri
 
  
 
-* Landsat 5, 7, 8 Surface Reflectance
+* Landsat 8/9 Surface Reflectance
 
 * Sentinel-2 MSI
 
-* Climate datasets available in GEE
+* Precipitation datasets available in GEE
 
  
 
