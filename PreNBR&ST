@@ -1,0 +1,147 @@
+////// Script by Sierra Fowler, UNG IESA. Spring 2026 ////
+//// Script to calculate CHIRPS rainfall for Caldor Wildfire //// 
+
+var AOI = ee.FeatureCollection('users/sierragpf03/CaldorAOI');
+
+// Choose date range
+var startDate = '2020-07-01';
+var endDate   = '2020-11-01';
+
+// Center map
+Map.centerObject(AOI, 9);
+Map.setOptions('SATELLITE');
+
+// =============================
+// 1. SENTINEL-2 NBR
+// =============================
+
+// Cloud mask using SCL band
+function maskS2clouds(image) {
+  var scl = image.select('SCL');
+  
+  // Keep clear land/water pixels, remove clouds/shadows/snow
+  var mask = scl.neq(3)   // cloud shadow
+    .and(scl.neq(8))      // medium probability cloud
+    .and(scl.neq(9))      // high probability cloud
+    .and(scl.neq(10))     // cirrus
+    .and(scl.neq(11));    // snow/ice
+  
+  return image.updateMask(mask);
+}
+
+// Load Sentinel-2 SR Harmonized
+var s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(AOI)
+  .filterDate(startDate, endDate)
+  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 30))
+  .map(maskS2clouds);
+
+// Create median composite
+var s2Composite = s2.median().clip(AOI);
+
+// Calculate NBR = (B8 - B12) / (B8 + B12)
+var nbr = s2Composite.normalizedDifference(['B8', 'B12']).rename('NBR');
+
+// NBR visualization
+var nbrVis = {
+  min: -1,
+  max: 1,
+  palette: ['black', 'brown', 'orange', 'yellow', 'green']
+};
+
+Map.addLayer(nbr, nbrVis, 'Sentinel-2 NBR');
+
+// =============================
+// 2. LANDSAT 8/9 SURFACE TEMPERATURE
+// =============================
+
+// Mask clouds for Landsat 8/9 C2 L2
+function maskLandsatC2(image) {
+  var qa = image.select('QA_PIXEL');
+  
+  // Bits for cloud and cloud shadow
+  var cloudShadowBitMask = 1 << 4;
+  var cloudBitMask       = 1 << 3;
+  
+  var mask = qa.bitwiseAnd(cloudShadowBitMask).eq(0)
+    .and(qa.bitwiseAnd(cloudBitMask).eq(0));
+  
+  return image.updateMask(mask);
+}
+
+// Apply scaling to Landsat Collection 2 Level 2 ST_B10
+function scaleLandsatST(image) {
+  var st = image.select('ST_B10')
+    .multiply(0.00341802)
+    .add(149.0)
+    .subtract(273.15)   // convert Kelvin to Celsius
+    .rename('SurfaceTemp_C');
+  
+  return image.addBands(st, null, true);
+}
+
+// Landsat 8
+var l8 = ee.ImageCollection('LANDSAT/LC08/C02/T1_L2')
+  .filterBounds(AOI)
+  .filterDate(startDate, endDate)
+  .map(maskLandsatC2)
+  .map(scaleLandsatST);
+
+// Landsat 9
+var l9 = ee.ImageCollection('LANDSAT/LC09/C02/T1_L2')
+  .filterBounds(AOI)
+  .filterDate(startDate, endDate)
+  .map(maskLandsatC2)
+  .map(scaleLandsatST);
+
+// Merge Landsat 8 + 9
+var landsat = l8.merge(l9);
+
+// Create median surface temperature composite
+var surfaceTemp = landsat.select('SurfaceTemp_C').median().clip(AOI);
+
+// Surface temperature visualization
+var tempVis = {
+  min: 10,
+  max: 45,
+  palette: ['blue', 'cyan', 'green', 'yellow', 'orange', 'red']
+};
+
+Map.addLayer(surfaceTemp, tempVis, 'Landsat Surface Temp (C)');
+
+// =============================
+// OPTIONAL RGB LAYERS FOR CHECKING
+// =============================
+
+Map.addLayer(
+  s2Composite,
+  {bands: ['B4', 'B3', 'B2'], min: 0, max: 3000},
+  'Sentinel-2 RGB',
+  false
+);
+
+// =============================
+// 3. EXPORT TO GOOGLE DRIVE
+// =============================
+
+// Export NBR
+Export.image.toDrive({
+  image: nbr,
+  description: 'AOI_Sentinel2_NBR',
+  folder: 'EarthEngineExports',
+  fileNamePrefix: 'AOI_Sentinel2_NBR',
+  region: AOI.geometry(),
+  scale: 10,
+  maxPixels: 1e13
+});
+
+// Export Surface Temperature
+Export.image.toDrive({
+  image: surfaceTemp,
+  description: 'AOI_Landsat_SurfaceTemp_C',
+  folder: 'EarthEngineExports',
+  fileNamePrefix: 'AOI_Landsat_SurfaceTemp_C',
+  region: AOI.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
