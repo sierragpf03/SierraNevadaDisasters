@@ -1,0 +1,79 @@
+////// Script by Sierra Fowler, UNG IESA. Spring 2026 ////
+//// Script to calculate CHIRPS rainfall for Caldor Wildfire //// 
+
+var AOI = ee.FeatureCollection('users/sierragpf03/CaldorAOI');  // replace with your AOI path
+
+Map.centerObject(AOI, 8);
+Map.addLayer(AOI, {color: 'blue'}, 'AOI');
+
+// ----------------------------
+// DATE RANGE
+// ----------------------------
+var startDate = ee.Date('2020-01-01');
+var endDate = ee.Date('2023-01-01');
+
+// ----------------------------
+// LOAD CHIRPS DAILY DATA
+// ----------------------------
+var chirps = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY')
+  .filterBounds(AOI)
+  .filterDate(startDate, endDate);
+
+// ----------------------------
+// BUILD MONTHLY TOTAL RAINFALL
+// ----------------------------
+var nMonths = endDate.difference(startDate, 'month');
+
+var monthlyRain = ee.FeatureCollection(
+  ee.List.sequence(0, nMonths.subtract(1)).map(function(m) {
+    var start = startDate.advance(m, 'month');
+    var end = start.advance(1, 'month');
+
+    var monthlyImage = chirps
+      .filterDate(start, end)
+      .sum();
+
+    var meanRain = monthlyImage.reduceRegion({
+      reducer: ee.Reducer.mean(),
+      geometry: AOI.geometry(),
+      scale: 5566,
+      maxPixels: 1e13
+    }).get('precipitation');
+
+    return ee.Feature(null, {
+      'date': start.format('YYYY-MM-dd'),
+      'year': start.get('year'),
+      'month': start.get('month'),
+      'precip_mm': meanRain
+    });
+  })
+);
+
+// Print results
+print('CHIRPS Monthly Rainfall Time Series', monthlyRain);
+
+// ----------------------------
+// CREATE CHART
+// ----------------------------
+var chart = ui.Chart.feature.byFeature(monthlyRain, 'date', ['precip_mm'])
+  .setChartType('LineChart')
+  .setOptions({
+    title: 'Monthly CHIRPS Rainfall over AOI',
+    hAxis: {title: 'Date'},
+    vAxis: {title: 'Rainfall (mm)'},
+    lineWidth: 2,
+    pointSize: 3
+  });
+
+print(chart);
+
+// ----------------------------
+// EXPORT CSV TO GOOGLE DRIVE
+// ----------------------------
+Export.table.toDrive({
+  collection: monthlyRain,
+  description: 'CHIRPS_Monthly_Rainfall_Timeseries',
+  folder: 'EarthEngineExports',
+  fileNamePrefix: 'CHIRPS_Monthly_Rainfall_Timeseries',
+  fileFormat: 'CSV'
+});
